@@ -1,0 +1,767 @@
+None selected
+
+Skip to content
+Using Gmail with screen readers
+
+Conversations
+5% of 15 GB used
+Terms · Privacy · Program Policies
+Last account activity: 21 minutes ago
+Details
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>VisionOS Web - Ultimate</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<!-- Three.js is still included for potential future 3D elements, but the main visualizer is removed -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+    :root {
+        --glass-bg: rgba(30, 30, 30, 0.65);
+        --glass-border: rgba(255, 255, 255, 0.2);
+        --glass-shadow: 0 15px 40px rgba(0,0,0,0.4);
+        --accent: #0a84ff;
+    }
+
+    html, body {
+        height: 100%; margin: 0;
+        background: #000 url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop') no-repeat center center/cover;
+        overflow: hidden;
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        color: #fff;
+        user-select: none;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    /* --- Status Bar --- */
+    #statusBar {
+        position: fixed; top: 0; left: 0; width: 100%; height: 36px;
+        display: flex; justify-content: flex-end; align-items: center;
+        padding: 0 20px; box-sizing: border-box;
+        z-index: 9000;
+        background: linear-gradient(to bottom, rgba(0,0,0,0.5), transparent);
+        font-size: 14px; font-weight: 500; text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+        gap: 15px;
+    }
+    #statusBar > div { cursor: pointer; }
+
+    .battery-container {
+        display: flex; align-items: center; gap: 6px;
+    }
+    .battery-icon {
+        width: 22px; height: 10px; border: 1px solid rgba(255,255,255,0.8);
+        border-radius: 3px; padding: 1px; position: relative;
+    }
+    .battery-icon::after {
+        content: ''; position: absolute; right: -3px; top: 2px;
+        width: 2px; height: 6px; background: rgba(255,255,255,0.8);
+        border-radius: 0 2px 2px 0;
+    }
+    .battery-level {
+        height: 100%; background: #fff; border-radius: 1px; width: 100%;
+        transition: width 0.5s, background 0.5s;
+    }
+    .battery-charging .battery-level { background: #30d158; }
+
+    /* --- Control Center --- */
+    #controlCenter {
+        position: fixed; top: 45px; right: 15px;
+        width: 280px;
+        background: rgba(40, 40, 40, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 20px;
+        box-shadow: 0 15px 40px rgba(0,0,0,0.5);
+        backdrop-filter: blur(30px) saturate(180%);
+        -webkit-backdrop-filter: blur(30px) saturate(180%);
+        z-index: 8999;
+        padding: 15px;
+        box-sizing: border-box;
+        display: flex; flex-direction: column; gap: 10px;
+        opacity: 0; transform: translateY(-20px) scale(0.95);
+        transition: opacity 0.3s ease, transform 0.3s ease;
+        pointer-events: none;
+    }
+    #controlCenter.visible {
+        opacity: 1; transform: translateY(0) scale(1);
+        pointer-events: auto;
+    }
+    .control-item {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 10px; background: rgba(255,255,255,0.1); border-radius: 12px;
+        cursor: pointer; transition: background 0.2s;
+    }
+    .control-item:hover, .control-item.hover-active { background: rgba(255,255,255,0.2); }
+    .control-item .label { font-weight: 500; }
+    .control-toggle {
+        width: 44px; height: 26px; background: rgba(0,0,0,0.4);
+        border-radius: 13px; position: relative;
+        transition: background 0.3s;
+    }
+    .control-toggle::before {
+        content: ''; position: absolute; top: 2px; left: 2px;
+        width: 22px; height: 22px; background: white; border-radius: 50%;
+        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .control-item.active .control-toggle { background: var(--accent); }
+    .control-item.active .control-toggle::before { transform: translateX(18px); }
+    
+    /* --- App Launcher --- */
+    #appLauncher {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.4);
+        backdrop-filter: blur(25px);
+        -webkit-backdrop-filter: blur(25px);
+        z-index: 10000;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        transition: opacity 0.3s ease, visibility 0.3s;
+        opacity: 1; visibility: visible;
+    }
+    #appLauncher.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+    
+    #launcherClose {
+        position: absolute; bottom: 50px;
+        width: 50px; height: 50px; border-radius: 50%;
+        background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.2);
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer; transition: 0.2s; backdrop-filter: blur(10px);
+    }
+    #launcherClose:hover, #launcherClose.hover-active {
+        background: rgba(255,255,255,0.25); transform: scale(1.1);
+    }
+
+    .app-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 40px; padding: 40px; }
+    .app-item {
+        display: flex; flex-direction: column; align-items: center; gap: 10px; cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .app-item.hover-active { 
+        transform: translateY(-10px) scale(1.15); 
+        filter: drop-shadow(0 0 15px rgba(255,255,255,0.4));
+    }
+    .app-circle {
+        width: 80px; height: 80px; border-radius: 50%;
+        background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        display: flex; align-items: center; justify-content: center;
+    }
+    .app-label { font-size: 13px; font-weight: 500; opacity: 0.9; }
+    
+    .app-settings .app-circle { background: linear-gradient(135deg, #5d5d5d, #2a2a2a); }
+    .app-photos .app-circle { background: linear-gradient(135deg, #FFCC00, #FF9500); } 
+
+    /* --- Windows --- */
+    .window {
+        position: absolute; left: 50%; top: 50%;
+        width: 500px; height: 350px;
+        background: var(--glass-bg); border: 1px solid var(--glass-border);
+        border-radius: 20px; box-shadow: var(--glass-shadow);
+        backdrop-filter: blur(40px) saturate(150%);
+        -webkit-backdrop-filter: blur(40px) saturate(150%);
+        z-index: 60;
+        display: flex; flex-direction: column;
+        opacity: 0; transform: translate(-50%, -50%) scale(0.9);
+        transition: opacity 0.3s ease, transform 0.3s ease, width 0.1s, height 0.1s;
+        overflow: hidden; pointer-events: none; 
+    }
+    .window.active { opacity: 1; transform: translate(-50%, -50%) scale(1); pointer-events: auto; }
+    .window.maximized {
+        width: 100% !important; height: calc(100% - 36px) !important;
+        left: 50% !important; top: calc(50% + 18px) !important;
+        border-radius: 0; border: none; transform: translate(-50%, -50%) !important;
+        backdrop-filter: blur(0px);
+    }
+    .window.maximized .resize-handle { display: none; }
+
+    .window-header {
+        height: 44px; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0 16px; border-bottom: 1px solid rgba(255,255,255,0.1);
+        cursor: grab; position: relative; z-index: 10;
+        background: rgba(255,255,255,0.02);
+    }
+    .window-header.dragging { cursor: grabbing; background: rgba(255,255,255,0.05); }
+    
+    .header-left { display: flex; gap: 10px; flex: 1; align-items: center;}
+    .header-title { font-weight: 600; font-size: 14px; color: rgba(255,255,255,0.9); text-align: center; position: absolute; left:0; right:0; pointer-events: none;}
+    .header-right { display: flex; gap: 14px; z-index: 2; padding-left: 10px; }
+
+    .win-btn {
+        width: 14px; height: 14px; border-radius: 50%; border: none;
+        cursor: pointer; position: relative; margin-left: 2px;
+        transition: transform 0.2s;
+    }
+    .win-btn::after { content: ''; position: absolute; top: -15px; left: -15px; right: -15px; bottom: -15px; }
+    .win-btn:hover, .win-btn.hover-active { transform: scale(1.3); box-shadow: 0 0 10px rgba(255,255,255,0.6); }
+    .btn-close { background: #ff5f56; }
+    .btn-max { background: #28c841; }
+    .btn-back { 
+        background: transparent; color: white; width: auto; height: auto; 
+        font-size: 20px; display: none; cursor: pointer; padding: 5px 10px 5px 0;
+    }
+    .btn-back::after { top: -5px; left: -5px; right: -5px; bottom: -5px; }
+
+    .window-content { flex: 1; position: relative; overflow: hidden; display: flex; flex-direction: column;}
+    .resize-handle {
+        position: absolute; bottom: 0; right: 0; width: 40px; height: 40px;
+        cursor: se-resize; z-index: 20;
+    }
+
+    /* --- macOS Slider --- */
+    .settings-content { padding: 30px; }
+    .slider-container { margin-top: 15px; width: 100%; height: 24px; position: relative; cursor: pointer; }
+    .mac-slider {
+        width: 100%; height: 100%; background: rgba(0,0,0,0.3);
+        border-radius: 12px; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
+    }
+    .mac-slider-fill {
+        height: 100%; width: 50%; background: #fff; border-radius: 12px 0 0 12px; pointer-events: none;
+    }
+
+    /* --- Photos App --- */
+    .gallery-grid {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); 
+        gap: 15px; padding: 20px; overflow-y: auto; height: 100%; box-sizing: border-box;
+    }
+    .gallery-img { 
+        width: 100%; height: 110px; object-fit: cover; border-radius: 8px; cursor: pointer; 
+        transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.2s; will-change: transform, filter;
+    }
+    .gallery-img:hover, .gallery-img.hover-active { 
+        transform: scale(1.02); filter: brightness(1.35) saturate(1.1); z-index: 2; box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+    }
+    .photo-viewer {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background: #000; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 10;
+    }
+    .photo-viewer img { 
+        max-width: 100%; max-height: 80%; object-fit: contain; 
+        box-shadow: 0 0 30px rgba(0,0,0,0.5); opacity: 0; transition: opacity 0.3s ease-in;
+    }
+    .photo-metadata {
+        margin-top: 15px; color: rgba(255,255,255,0.7); text-align: center; font-size: 13px;
+        display: flex; gap: 15px; background: rgba(30,30,30,0.8); padding: 8px 16px; border-radius: 20px;
+        opacity: 0; transition: opacity 0.3s 0.1s;
+    }
+    .photo-viewer.visible img, .photo-viewer.visible .photo-metadata { opacity: 1; }
+    
+    /* --- Liquid Glass Button --- */
+    #showCameraBtn {
+        position: fixed; bottom: 20px; right: 20px;
+        width: 60px; height: 60px;
+        background: rgba(40, 40, 40, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        z-index: 9990;
+        cursor: pointer;
+        display: none; /* Hidden by default */
+        align-items: center; justify-content: center;
+        transition: all 0.3s ease;
+        overflow: hidden;
+    }
+    #showCameraBtn::before, #showCameraBtn::after {
+        content: '';
+        position: absolute;
+        width: 150%; height: 150%;
+        background: conic-gradient(from 180deg at 50% 50%, rgba(255, 255, 255, 0.5) 0deg, rgba(255, 255, 255, 0) 60deg);
+        transition: transform 0.5s ease;
+    }
+    #showCameraBtn::before { top: -25%; left: -25%; transform-origin: top left; }
+    #showCameraBtn::after { bottom: -25%; right: -25%; transform: rotate(180deg); transform-origin: bottom right; }
+    #showCameraBtn:hover, #showCameraBtn.hover-active {
+        transform: scale(1.1);
+        box-shadow: 0 0 25px rgba(10, 132, 255, 0.6);
+        background: rgba(40, 40, 40, 0.7);
+    }
+    #showCameraBtn.visible { display: flex; }
+
+
+    /* --- Tracking Visuals --- */
+    #cameraBox {
+        position: fixed; bottom: 15px; right: 15px;
+        width: 160px; height: 120px;
+        background: #000; border-radius: 12px;
+        overflow: hidden; z-index: 9999;
+        border: 1px solid rgba(255,255,255,0.2);
+        opacity: 0.6; transition: opacity 0.3s, transform 0.3s;
+    }
+    #cameraBox.hidden { opacity: 0; pointer-events: none; transform: scale(0.8); }
+    #cameraBox:hover { opacity: 1; }
+    #videoElement { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); opacity: 0.5; }
+    #camCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: scaleX(-1); }
+
+    .finger-dot {
+        position: fixed; width: 6px; height: 6px; border-radius: 50%;
+        pointer-events: none; z-index: 11000;
+        transition: width 0.1s, height 0.1s;
+        box-shadow: 0 0 5px rgba(255,255,255,0.5);
+    }
+    #thumbDot { background: #ff9500; }
+    #indexDot { background: #30cfd0; }
+
+    #cursor {
+        position: fixed; width: 10px; height: 10px; background: rgba(255,255,255,0.9);
+        border-radius: 50%; pointer-events: none; z-index: 11001;
+        transform: translate(-50%, -50%);
+        box-shadow: 0 0 10px rgba(255,255,255,0.8);
+        transition: width 0.1s, height 0.1s, background 0.1s;
+    }
+    #cursor.locked { width: 4px; height: 4px; background: transparent; }
+    #cursor.clicked { background: #0a84ff; width: 14px; height: 14px; }
+
+    #palmHint {
+        position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
+        background: rgba(0,0,0,0.5); padding: 8px 16px; border-radius: 20px;
+        font-size: 12px; color: rgba(255,255,255,0.7); pointer-events: none;
+        opacity: 0; transition: opacity 0.5s; z-index: 90;
+    }
+</style>
+</head>
+<body>
+
+    <!-- UI Structure -->
+    <div id="statusBar">
+        <div class="battery-container">
+            <span id="batteryPercent">100%</span>
+            <div class="battery-icon"><div class="battery-level" id="batteryLevel"></div></div>
+        </div>
+        <span id="clockDisplay">12:00 PM</span>
+    </div>
+
+    <div id="controlCenter">
+        <div class="control-item" id="silentMode">
+            <span class="label">Silent Mode</span>
+            <div class="control-toggle"></div>
+        </div>
+        <div class="control-item" id="hideCamera">
+            <span class="label">Hide Camera</span>
+            <div class="control-toggle"></div>
+        </div>
+    </div>
+
+    <div id="appLauncher">
+        <div class="app-grid">
+            <div class="app-item app-settings" data-target="win-settings">
+                <div class="app-circle"><svg width="36" height="36" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg></div>
+                <span class="app-label">Settings</span>
+            </div>
+            <div class="app-item app-photos" data-target="win-photos">
+                <div class="app-circle"><svg width="36" height="36" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg></div>
+                <span class="app-label">Photos</span>
+            </div>
+        </div>
+        <div id="launcherClose"><svg width="24" height="24" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></div>
+    </div>
+
+    <!-- Settings Window -->
+    <div class="window" id="win-settings">
+        <div class="window-header">
+            <div class="header-left"></div>
+            <div class="header-title">Settings</div>
+            <div class="header-right">
+                <button class="win-btn btn-max"></button>
+                <button class="win-btn btn-close"></button>
+            </div>
+        </div>
+        <div class="window-content settings-content">
+            <h3>Display</h3>
+            <label>Brightness</label>
+            <div class="slider-container" id="brightnessSlider">
+                <div class="mac-slider">
+                    <div class="mac-slider-fill" style="width: 70%"></div>
+                </div>
+            </div>
+        </div>
+        <div class="resize-handle"></div>
+    </div>
+
+    <!-- Photos Window -->
+    <div class="window" id="win-photos">
+        <div class="window-header">
+            <div class="header-left"><button class="win-btn btn-back">❮</button></div>
+            <div class="header-title">Photos</div>
+            <div class="header-right">
+                <button class="win-btn btn-max"></button>
+                <button class="win-btn btn-close"></button>
+            </div>
+        </div>
+        <div class="window-content" style="background: #111;">
+            <div class="gallery-grid">
+                <img src="https://images.unsplash.com/photo-1472214103451-9374bd1c798e?w=400" class="gallery-img" data-full="https://images.unsplash.com/photo-1472214103451-9374bd1c798e?w=1200" data-loc="Yosemite" data-date="Oct 24, 2021">
+                <img src="https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=400" class="gallery-img" data-full="https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=1200" data-loc="Iceland" data-date="Aug 12, 2022">
+                <img src="https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400" class="gallery-img" data-full="https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1200" data-loc="Forest Trail" data-date="Sep 05, 2020">
+                <img src="https://images.unsplash.com/photo-1497436072909-60f360e1d4b0?w=400" class="gallery-img" data-full="https://images.unsplash.com/photo-1497436072909-60f360e1d4b0?w=1200" data-loc="Alps" data-date="Jan 15, 2023">
+                <img src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=400" class="gallery-img" data-full="https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200" data-loc="Yosemite Valley" data-date="Feb 10, 2023">
+                <img src="https://images.unsplash.com/photo-1511497584788-876760111969?w=400" class="gallery-img" data-full="https://images.unsplash.com/photo-1511497584788-876760111969?w=1200" data-loc="Forest Mist" data-date="Mar 22, 2023">
+            </div>
+            <div class="photo-viewer">
+                <img id="viewerImg" src="" alt="">
+                <div class="photo-metadata">
+                    <span id="metaDate"></span><span>•</span><span id="metaLoc"></span>
+                </div>
+            </div>
+        </div>
+        <div class="resize-handle"></div>
+    </div>
+    
+    <!-- Visuals -->
+    <div id="cursor"></div>
+    <div id="thumbDot" class="finger-dot"></div>
+    <div id="indexDot" class="finger-dot"></div>
+
+    <div id="cameraBox">
+        <video id="videoElement" autoplay playsinline muted></video>
+        <canvas id="camCanvas"></canvas>
+    </div>
+    <button id="showCameraBtn">
+        <svg width="24" height="24" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9A2.25 2.25 0 004.5 18.75z"/>
+        </svg>
+    </button>
+    <div id="palmHint">Open hand palm-up to show apps</div>
+
+    <!-- Logic -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+    <script>
+        // --- 1. Sound System (VisionOS Boop) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function resumeAudio() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+        document.body.addEventListener('click', resumeAudio, { once: true });
+        document.body.addEventListener('touchstart', resumeAudio, { once: true });
+
+        function playBoop() {
+            if (document.getElementById('silentMode').classList.contains('active')) return;
+            resumeAudio();
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(400, audioCtx.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.1);
+            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + 0.2);
+        }
+
+        // --- 2. System & Time & Battery & Control Center ---
+        function updateTime() {
+            const now = new Date();
+            let h = now.getHours(); const m = now.getMinutes().toString().padStart(2, '0');
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            h = h % 12; h = h ? h : 12;
+            document.getElementById('clockDisplay').textContent = `${h}:${m} ${ampm}`;
+        }
+        setInterval(updateTime, 1000); updateTime();
+
+        if (navigator.getBattery) {
+            navigator.getBattery().then(function(battery) {
+                function updateBattery() {
+                    const level = Math.round(battery.level * 100);
+                    document.getElementById('batteryPercent').textContent = level + '%';
+                    document.getElementById('batteryLevel').style.width = level + '%';
+                    if (battery.charging) document.querySelector('.battery-icon').classList.add('battery-charging');
+                    else document.querySelector('.battery-icon').classList.remove('battery-charging');
+                }
+                updateBattery();
+                battery.addEventListener('levelchange', updateBattery);
+                battery.addEventListener('chargingchange', updateBattery);
+            });
+        }
+
+        // Control Center Logic
+        const statusBar = document.getElementById('statusBar');
+        const controlCenter = document.getElementById('controlCenter');
+        statusBar.addEventListener('click', () => {
+            controlCenter.classList.toggle('visible');
+            playBoop();
+        });
+        
+        document.getElementById('silentMode').addEventListener('click', (e) => {
+            e.currentTarget.classList.toggle('active');
+            playBoop();
+        });
+
+        const cameraBox = document.getElementById('cameraBox');
+        const showCameraBtn = document.getElementById('showCameraBtn');
+        const hideCameraToggle = document.getElementById('hideCamera');
+
+        hideCameraToggle.addEventListener('click', (e) => {
+            const isActive = e.currentTarget.classList.toggle('active');
+            cameraBox.classList.toggle('hidden', isActive);
+            showCameraBtn.classList.toggle('visible', isActive);
+            playBoop();
+        });
+        
+        showCameraBtn.addEventListener('click', () => {
+            hideCameraToggle.classList.remove('active');
+            cameraBox.classList.remove('hidden');
+            showCameraBtn.classList.remove('visible');
+            playBoop();
+        });
+
+
+        // --- 3. UI Logic ---
+        const cursor = document.getElementById('cursor');
+        const launcher = document.getElementById('appLauncher');
+        let zIndex = 100;
+        let appsOpenCount = 0;
+        let activeWindow = null;
+
+        function toggleLauncher(show) {
+            if(show) launcher.classList.remove('hidden'); else launcher.classList.add('hidden');
+        }
+        document.getElementById('launcherClose').addEventListener('click', () => { toggleLauncher(false); playBoop(); });
+
+        function openApp(id) {
+            const win = document.getElementById(id);
+            if(win) { 
+                win.classList.add('active'); 
+                win.style.zIndex = ++zIndex; 
+                appsOpenCount++; 
+                toggleLauncher(false);
+                activeWindow = win;
+                playBoop();
+            }
+        }
+        function closeApp(win) {
+            win.classList.remove('active', 'maximized'); 
+            appsOpenCount--;
+            if(appsOpenCount === 0) {
+                toggleLauncher(true);
+                activeWindow = null;
+            } else {
+                const wins = Array.from(document.querySelectorAll('.window.active')).sort((a,b) => b.style.zIndex - a.style.zIndex);
+                activeWindow = wins.length > 0 ? wins[0] : null;
+            }
+            playBoop();
+        }
+
+        document.addEventListener('click', (e) => {
+            const win = e.target.closest('.window');
+            if(win && win !== activeWindow) {
+                activeWindow = win;
+                win.style.zIndex = ++zIndex;
+            }
+        });
+
+        function openPhoto(target) {
+            const win = target.closest('.window');
+            const viewer = win.querySelector('.photo-viewer');
+            const imgEl = viewer.querySelector('img');
+            const metaDiv = win.querySelector('.photo-metadata');
+            viewer.classList.remove('visible');
+            imgEl.style.opacity = '0'; metaDiv.style.opacity = '0'; imgEl.src = ''; 
+            win.querySelector('#metaDate').textContent = target.dataset.date;
+            win.querySelector('#metaLoc').textContent = target.dataset.loc;
+            viewer.style.display = 'flex';
+            win.querySelector('.btn-back').style.display = 'block';
+            win.querySelector('.header-title').textContent = 'View';
+            imgEl.src = target.dataset.full;
+            imgEl.onload = () => { viewer.classList.add('visible'); imgEl.style.opacity = '1'; metaDiv.style.opacity = '1'; }
+            playBoop();
+        }
+        function closePhoto(win) {
+            const viewer = win.querySelector('.photo-viewer');
+            viewer.classList.remove('visible');
+            setTimeout(() => { viewer.style.display = 'none'; viewer.querySelector('img').src = ''; }, 300);
+            win.querySelector('.btn-back').style.display = 'none';
+            win.querySelector('.header-title').textContent = 'Photos';
+        }
+
+        // --- 4. Tracking Engine ---
+        function triggerClick(x, y) {
+            cursor.classList.add('clicked');
+            setTimeout(() => cursor.classList.remove('clicked'), 200);
+            
+            let target = lockedElement;
+            if(!target) target = document.elementFromPoint(x, y);
+            if(!target) return;
+
+            if(target.closest('.app-item, #launcherClose, .win-btn, .gallery-img, #showCameraBtn, .control-item')) playBoop();
+
+            if(target.closest('#statusBar')) { target.closest('#statusBar').click(); return; }
+            if(target.closest('.control-item')) { target.closest('.control-item').click(); return; }
+
+            if(target.closest('.app-item')) { openApp(target.closest('.app-item').dataset.target); return; }
+            if(target.closest('#launcherClose')) { toggleLauncher(false); return; }
+            
+            const win = target.closest('.window');
+            if(win) {
+                if(win !== activeWindow) {
+                    activeWindow = win;
+                    win.style.zIndex = ++zIndex;
+                }
+                if(target.closest('.btn-close')) { closeApp(win); return; }
+                if(target.closest('.btn-max')) { win.classList.toggle('maximized'); return; }
+                if(target.closest('.btn-back')) { closePhoto(win); return; }
+            }
+            if(target.classList.contains('gallery-img')) { openPhoto(target); return; }
+            if(target.closest('.slider-container')) { updateSlider(target.closest('.slider-container'), x); isPinching = true; dragItem = target.closest('.slider-container'); return; }
+            if(target.closest('#showCameraBtn')) { target.closest('#showCameraBtn').click(); return; }
+            
+            if(win && !win.classList.contains('maximized')) {
+                if(target.closest('.resize-handle')) {
+                    isResizing = true; activeWindow = win;
+                    const r = win.getBoundingClientRect();
+                    resizeData = { w: r.width, h: r.height, startX: x, startY: y };
+                } else if(target.closest('.window-header') && target.tagName !== 'BUTTON') {
+                    dragItem = win;
+                    const r = win.getBoundingClientRect();
+                    // IMPORTANT: Calculate offset based on the element's actual top/left, not the mouse position alone.
+                    dragOffset.x = x - parseFloat(win.style.left || window.innerWidth / 2);
+                    dragOffset.y = y - parseFloat(win.style.top || window.innerHeight / 2);
+                    target.closest('.window-header').classList.add('dragging');
+                }
+            }
+        }
+
+        function updateSlider(slider, x) {
+            const rect = slider.getBoundingClientRect();
+            let pct = (x - rect.left) / rect.width;
+            pct = Math.max(0, Math.min(1, pct));
+            slider.querySelector('.mac-slider-fill').style.width = (pct * 100) + '%';
+            document.body.style.filter = `brightness(${0.3 + (pct * 0.7)})`;
+        }
+
+        const video = document.getElementById('videoElement');
+        const camCanvas = document.getElementById('camCanvas');
+        const ctx = camCanvas.getContext('2d');
+        
+        let cursorX = window.innerWidth/2, cursorY = window.innerHeight/2;
+        let isPinching = false;
+        let lockedElement = null;
+        let dragItem = null; let dragOffset = {x:0, y:0};
+        let isResizing = false; let resizeData = {};
+        let lastPalmTime = 0; 
+
+        const PINCH_THRESH = 0.05; const PINCH_RELEASE = 0.07;
+        const MAGNET_DIST = 40; const MAGNET_BREAK = 90;
+
+        const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+        hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.7, minTrackingConfidence: 0.7 });
+        hands.onResults(onResults);
+        
+        const camera = new Camera(video, { 
+            onFrame: async () => { await hands.send({image: video}); }, 
+            width: 640, height: 480 
+        });
+        camera.start();
+
+        function onResults(results) {
+            ctx.clearRect(0, 0, camCanvas.width, camCanvas.height);
+            
+            if(results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const lm = results.multiHandLandmarks[0];
+                const indexTip = lm[8]; const thumbTip = lm[4];
+
+                const SCALE = 1.1;
+                const rawIndexX = (((1 - indexTip.x) - 0.5) * SCALE + 0.5) * window.innerWidth;
+                const rawIndexY = ((indexTip.y - 0.5) * SCALE + 0.5) * window.innerHeight;
+                const rawThumbX = (((1 - thumbTip.x) - 0.5) * SCALE + 0.5) * window.innerWidth;
+                const rawThumbY = ((thumbTip.y - 0.5) * SCALE + 0.5) * window.innerHeight;
+
+                document.getElementById('indexDot').style.left = rawIndexX + 'px';
+                document.getElementById('indexDot').style.top = rawIndexY + 'px';
+                document.getElementById('thumbDot').style.left = rawThumbX + 'px';
+                document.getElementById('thumbDot').style.top = rawThumbY + 'px';
+
+                let targetX = (rawIndexX + rawThumbX) / 2;
+                let targetY = (rawIndexY + rawThumbY) / 2;
+                
+                targetX = Math.max(0, Math.min(window.innerWidth, targetX));
+                targetY = Math.max(0, Math.min(window.innerHeight, targetY));
+
+                const distMove = Math.hypot(targetX - cursorX, targetY - cursorY);
+                let alpha = distMove > 50 ? 0.4 : (distMove > 20 ? 0.2 : 0.08);
+                cursorX += (targetX - cursorX) * alpha;
+                cursorY += (targetY - cursorY) * alpha;
+
+                // Magnetism
+                if (lockedElement) {
+                    const rect = lockedElement.getBoundingClientRect();
+                    const cx = rect.left + rect.width/2; const cy = rect.top + rect.height/2;
+                    if (Math.hypot(cursorX - cx, cursorY - cy) < MAGNET_BREAK) {
+                        cursorX += (cx - cursorX) * 0.4; cursorY += (cy - cursorY) * 0.4;
+                        cursor.classList.add('locked'); lockedElement.classList.add('hover-active');
+                    } else {
+                        lockedElement.classList.remove('hover-active'); lockedElement = null; cursor.classList.remove('locked');
+                    }
+                } else {
+                    const potential = document.elementsFromPoint(cursorX, cursorY);
+                    for(let el of potential) {
+                        const l = el.closest('.win-btn, .app-item, .gallery-img, #launcherClose, #showCameraBtn, .control-item');
+                        if (l) {
+                            const r = l.getBoundingClientRect();
+                            if (Math.hypot(cursorX - (r.left+r.width/2), cursorY - (r.top+r.height/2)) < MAGNET_DIST) {
+                                lockedElement = l; break;
+                            }
+                        }
+                    }
+                }
+
+                cursor.style.left = cursorX + 'px'; cursor.style.top = cursorY + 'px';
+
+                const distPinch = Math.hypot(rawIndexX - rawThumbX, rawIndexY - rawThumbY) / window.innerWidth;
+                
+                if(!isPinching && distPinch < PINCH_THRESH) {
+                    isPinching = true; 
+                    triggerClick(cursorX, cursorY);
+                } else if(isPinching && distPinch > PINCH_RELEASE) {
+                    isPinching = false;
+                    if(dragItem && dragItem instanceof HTMLElement && dragItem.classList.contains('window')) dragItem.querySelector('.window-header').classList.remove('dragging');
+                    dragItem = null; isResizing = false;
+                }
+
+                if(isPinching) {
+                    if(dragItem) {
+                        if(dragItem.classList.contains('slider-container')) { updateSlider(dragItem, cursorX); }
+                        else if(dragItem.classList.contains('window')) {
+                            // ** SMOOTH DRAG LOGIC **
+                            // The transform is only for the initial centering and pop-in animation.
+                            // For dragging, we directly manipulate top/left for performance and simplicity.
+                            dragItem.style.transform = 'translate(-50%, -50%)'; // Keep it centered on its own axis
+                            dragItem.style.left = (cursorX - dragOffset.x) + 'px';
+                            dragItem.style.top = (cursorY - dragOffset.y) + 'px';
+                        }
+                    } else if(isResizing && activeWindow) {
+                        const dX = cursorX - resizeData.startX; 
+                        const dY = cursorY - resizeData.startY;
+                        activeWindow.style.width = Math.max(400, resizeData.w + dX) + 'px';
+                        activeWindow.style.height = Math.max(300, resizeData.h + dY) + 'px';
+                    }
+                }
+
+                if(!isPinching && !dragItem && appsOpenCount > 0) {
+                     const fo = lm[20].y < lm[18].y && lm[16].y < lm[14].y && lm[12].y < lm[10].y && lm[8].y < lm[6].y;
+                     const now = Date.now();
+                     if(fo && (now - lastPalmTime > 1000)) { 
+                         toggleLauncher(true); 
+                         document.getElementById('palmHint').style.opacity=0;
+                         lastPalmTime = now;
+                     }
+                }
+            }
+        }
+
+        video.onloadedmetadata = () => { 
+            if(video.videoWidth > 0 && video.videoHeight > 0) {
+                camCanvas.width = video.videoWidth; 
+                camCanvas.height = video.videoHeight; 
+            }
+        }
+    </script>
+</body>
+</html>
+ai_studio_code-3.html
+Displaying ai_studio_code-3.html.
