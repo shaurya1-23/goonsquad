@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>VisionOS Web - Ultimate</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<!-- Three.js library for 3D graphics, used by the Visualizer app -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<!-- Google Fonts for custom typography in the UI -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- ==========================================================================
+       2. HTML STRUCTURE
+       ========================================================================== -->
+
+    <!-- 2.1 Status Bar: Top bar with clock, battery, and controls -->
+    <div id="statusBar">
+        <!-- Left side, for Visualizer controls -->
+        <div id="statusLeft">
+            <button class="status-btn icon" id="vizAddBtn" type="button" aria-label="Add object">+</button>
+            <button class="status-btn" id="vizMoreBtn" type="button">More</button>
+            <button class="status-btn icon" id="vizCustomizeBtn" type="button" aria-label="Customize">✎</button>
+            <button class="status-btn icon" id="vizTrashBtn" type="button" aria-label="Trash">🗑</button>
+        </div>
+        <!-- Center area, contains the main Control Center trigger -->
+        <div id="statusCenter">
+            <div id="controlCenterTrigger">
+                <div class="battery-container">
+                    <span id="batteryPercent">100%</span>
+                    <div class="battery-icon"><div class="battery-level" id="batteryLevel"></div></div>
+                </div>
+                <span id="clockDisplay">12:00 PM</span>
+            </div>
+            <button id="appExitBtn" type="button">Exit</button>
+        </div>
+        <!-- Right side (currently empty) -->
+        <div id="statusRight"></div>
+    </div>
+
+    <!-- 2.2 Control Center: Dropdown for system settings -->
+    <div id="controlCenter">
+        <div class="control-item" id="silentMode">
+            <span class="label">Silent Mode</span>
+            <div class="control-toggle"></div>
+        </div>
+        <div class="control-item" id="hideCamera">
+            <span class="label">Hide Camera</span>
+            <div class="control-toggle"></div>
+        </div>
+    </div>
+
+    <!-- 2.3 App Launcher: Full-screen overlay with app icons -->
+    <div id="appLauncher">
+        <div class="app-grid">
+            <!-- Settings App Icon -->
+            <div class="app-item app-settings" data-target="win-settings">
+                <div class="app-circle"><svg width="36" height="36" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg></div>
+                <span class="app-label">Settings</span>
+            </div>
+            <!-- Photos App Icon -->
+            <div class="app-item app-photos" data-target="win-photos">
+                <div class="app-circle"><svg width="36" height="36" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg></div>
+                <span class="app-label">Photos</span>
+            </div>
+            <!-- Visualizer App Icon -->
+            <div class="app-item app-visualizer" data-target="visualizer">
+                <div class="app-circle"><svg width="36" height="36" fill="none" stroke="white" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 2.5l7.5 4.3v8.4L12 19.5l-7.5-4.3V6.8L12 2.5z"/><circle cx="12" cy="11.5" r="4.2" fill="rgba(255,255,255,0.15)" stroke="white"/></svg></div>
+                <span class="app-label">Visualizer</span>
+            </div>
+            <!-- ASL Trainer App Icon [NEW] -->
+            <div class="app-item app-asl-trainer" data-target="asl-trainer">
+                <div class="app-circle"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 11h-2.5a1.5 1.5 0 0 0 0 3h1a1.5 1.5 0 0 1 0 3H13c-2.2 0-4-1.8-4-4V5.5"/><path d="m11 5 3 3-3 3"/><path d="M22 12c0-2.8-2.2-5-5-5S12 9.2 12 12s2.2 5 5 5 5-2.2 5-5Z"/><path d="M2 12c0-2.8 2.2-5 5-5s5 2.2 5 5-2.2 5-5 5-5-2.2-5-5Z"/></svg></div>
+                <span class="app-label">ASL Trainer</span>
+            </div>
+        </div>
+        <!-- Close button for the launcher -->
+        <div id="launcherClose"><svg width="24" height="24" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></div>
+    </div>
+
+    <!-- 2.4 Visualizer App: Full-screen 3D environment and its UI overlays -->
+    <div id="visualizerApp">
+        <canvas id="visualizerCanvas"></canvas>
+    </div>
+    <div id="visualizerUi">
+        <!-- Start Screen -->
+        <div id="visualizerStart">
+            <div class="viz-card">
+                <h2>3D Visualizer</h2>
+                <p>Start a new project or open a saved one.</p>
+                <div class="viz-actions">
+                    <button class="viz-action-btn" id="vizNewProjectBtn">New Project</button>
+                    <button class="viz-action-btn" id="vizOpenFileBtn">Open Existing Project</button>
+                    <button class="viz-action-btn" id="vizOpenSavedBtn">Open Saved Project</button>
+                </div>
+                <div class="viz-saved-list" id="vizSavedList"></div>
+            </div>
+        </div>
+        <!-- Add Object Modal -->
+        <div id="vizAddModal">
+            <div class="viz-card">
+                <h3>Add Object</h3>
+                <p>Choose an object to place on the plane.</p>
+                <div class="viz-object-grid" id="vizObjectGrid"></div>
+                <div class="viz-actions" style="margin-top:14px;">
+                    <button class="viz-action-btn" id="vizAddCancelBtn">Cancel</button>
+                </div>
+            </div>
+        </div>
+        <!-- "More" Menu -->
+        <div id="vizMoreMenu">
+            <div class="viz-card">
+                <h3>More</h3>
+                <div class="viz-actions" style="flex-direction:column;">
+                    <button class="viz-action-btn" id="vizNewProjectMenu">New Project</button>
+                    <button class="viz-action-btn" id="vizOpenStartMenu">Open Start Screen</button>
+                </div>
+            </div>
+        </div>
+        <!-- Edit Object Popover -->
+        <div id="vizEditPopover">
+            <div class="viz-card">
+                <h3>Edit Object</h3>
+                <p>Adjust the color for the selected object.</p>
+                <div class="viz-edit-row">
+                    <div class="color-preview" id="vizColorPreview"></div>
+                    <input class="viz-edit-input" id="vizEditHex" type="text" value="#7AA2FF" aria-label="Hex color">
+                </div>
+                <label class="label" for="vizHueSlider">Hue</label>
+                <input class="viz-slider" id="vizHueSlider" type="range" min="0" max="360" value="210">
+                <div class="viz-actions" style="margin-top:14px;">
+                    <button class="viz-action-btn" id="vizOpenColorMapBtn">Open Color Map</button>
+                    <button class="viz-action-btn" id="vizEditCloseBtn">Done</button>
+                </div>
+            </div>
+        </div>
+        <!-- Full-screen Color Picker -->
+        <div id="colorPickerOverlay">
+            <div class="color-picker-card">
+                <h3>Pick a Color</h3>
+                <canvas id="colorMap" width="900" height="520"></canvas>
+                <input class="viz-slider" id="colorMapHue" type="range" min="0" max="360" value="210">
+                <div class="color-picker-footer">
+                    <div class="color-preview" id="colorMapPreview"></div>
+                    <input class="viz-edit-input" id="colorMapHex" type="text" value="#7AA2FF" aria-label="Hex color">
+                    <button class="viz-action-btn" id="colorMapDoneBtn" style="flex:0 0 auto;">Done</button>
+                </div>
+            </div>
+        </div>
+        <!-- Overlay for 2D controls on 3D objects -->
+        <div id="objectOverlay"></div>
+        <!-- Hint for trash mode -->
+        <div id="trashHint">Trash mode: select an object to delete</div>
+        <!-- Hidden file input for opening project files -->
+        <input type="file" id="vizFileInput" accept="application/json" style="display:none;">
+    </div>
+
+    <!-- 2.5 ASL Trainer App [NEW] -->
+    <div id="aslTrainerApp">
+        <div class="asl-panel">
+            <div>
+                <h2>IMITATE THE SIGN</h2>
+                <img id="aslTargetImage" src="" alt="ASL Target Sign">
+            </div>
+            <div>
+                <h2>FEEDBACK</h2>
+                <p class="asl-feedback" id="aslFeedback">Show Sign</p>
+            </div>
+            <div>
+                <h2>HOLD PROGRESS</h2>
+                <div class="asl-progress-bar-bg">
+                    <div class="asl-progress-bar-fill" id="aslProgressBar"></div>
+                </div>
+            </div>
+            <div class="asl-stats">
+                <h2>STATS</h2>
+                <p id="aslAttempts">Attempts: 0</p>
+                <p id="aslCorrect">Correct: 0</p>
+                <p id="aslAccuracy">Accuracy: 0.0%</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2.6 Standard Windows -->
+    <!-- Settings Window -->
+    <div class="window" id="win-settings">
+        <div class="window-header">
+            <div class="header-left"></div>
+            <div class="header-title">Settings</div>
+            <div class="header-right">
+                <button class="win-btn btn-max"></button>
+                <button class="win-btn btn-close"></button>
+            </div>
+        </div>
+        <div class="window-content settings-content">
+            <h3>Display</h3>
+            <label>Brightness</label>
+            <div class="slider-container" id="brightnessSlider">
+                <div class="mac-slider">
+                    <div class="mac-slider-fill" style="width: 70%"></div>
+                </div>
+            </div>
+            <h3 style="margin-top:20px;">System</h3>
+            <div class="control-item" id="settingsSilentMode">
+                <span class="label">Silent Mode</span>
+                <div class="control-toggle"></div>
+            </div>
+            <div class="control-item" id="settingsHideCamera">
+                <span class="label">Hide Camera</span>
+                <div class="control-toggle"></div>
+            </div>
+        </div>
+        <div class="resize-handle"></div>
+    </div>
+
+    <!-- Photos Window -->
+    <div class="window" id="win-photos">
+        <div class="window-header">
+            <div class="header-left"><button class="win-btn btn-back">❮</button></div>
+            <div class="header-title">Photos</div>
+            <div class="header-right">
+                <button class="win-btn btn-max"></button>
+                <button class="win-btn btn-close"></button>
+            </div>
+        </div>
+        <div class="window-content" style="background: #111;">
+            <div class="gallery-grid">
+                <!-- Image elements with data attributes for full-size URL and metadata -->
+                <img src="https://images.unsplash.com/photo-1472214103451-9374bd1c798e?w=400" class="gallery-img" data-full="https://images.unsplash.com/photo-1472214103451-9374bd1c798e?w=1200" data-loc="Yosemite" data-date="Oct 24, 2021">
+                <img src="https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=400" class="gallery-img" data-full="https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=1200" data-loc="Iceland" data-date="Aug 12, 2022">
+                <img src="https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400" class="gallery-img" data-full="https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1200" data-loc="Forest Trail" data-date="Sep 05, 2020">
+                <img src="https://images.unsplash.com/photo-1497436072909-60f360e1d4b0?w=400" class="gallery-img" data-full="https://images.unsplash.com/photo-1497436072909-60f360e1d4b0?w=1200" data-loc="Alps" data-date="Jan 15, 2023">
+                <img src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=400" class="gallery-img" data-full="https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200" data-loc="Yosemite Valley" data-date="Feb 10, 2023">
+                <img src="https://images.unsplash.com/photo-1511497584788-876760111969?w=400" class="gallery-img" data-full="https://images.unsplash.com/photo-1511497584788-876760111969?w=1200" data-loc="Forest Mist" data-date="Mar 22, 2023">
+            </div>
+            <div class="photo-viewer">
+                <img id="viewerImg" src="" alt="">
+                <div class="photo-metadata">
+                    <span id="metaDate"></span><span>•</span><span id="metaLoc"></span>
+                </div>
+            </div>
+        </div>
+        <div class="resize-handle"></div>
+    </div>
+    
+    <!-- 2.7 Tracking Visuals: Cursor, finger dots, and camera feed -->
+    <div id="cursor"></div>
+    <div id="thumbDot" class="finger-dot"></div>
+    <div id="indexDot" class="finger-dot"></div>
+
+    <div id="cameraBox">
+        <video id="videoElement" autoplay playsinline muted></video>
+        <canvas id="camCanvas"></canvas>
+    </div>
+    <button id="showCameraBtn">
+        <svg width="24" height="24" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9A2.25 2.25 0 004.5 18.75z"/>
+        </svg>
+    </button>
+    <div id="palmHint">Open hand palm-up to show apps</div>
+
+    <!-- ==========================================================================
+       3. JAVASCRIPT LOGIC
+       ========================================================================== -->
+    
+    <!-- External libraries for hand tracking -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+    <script src="script.js"></script>
+</body>
+</html>
